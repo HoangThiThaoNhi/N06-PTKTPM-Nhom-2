@@ -3,11 +3,15 @@ session_start();
 
 require_once 'vendor/autoload.php';
 
+// Load biến môi trường từ file .env
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
 // Thiết lập Google Client
 $client = new Google\Client();
-$client->setClientId('327317089169-c9n8jbg6e6kedvn1ggbpjkn5o5lcg7vd.apps.googleusercontent.com');
-$client->setClientSecret('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');
-$client->setRedirectUri('http://localhost:8081/DOAN/google_login.php');
+$client->setClientId(getenv('GOOGLE_CLIENT_ID'));
+$client->setClientSecret(getenv('GOOGLE_CLIENT_SECRET'));
+$client->setRedirectUri(getenv('GOOGLE_REDIRECT_URI'));
 $client->addScope("email");
 $client->addScope("profile");
 $client->setPrompt("select_account");
@@ -25,8 +29,8 @@ if (isset($_GET['code'])) {
         $email = $google_account_info->email;
         $name = $google_account_info->name;
 
-        // Đặt default_role sau khi lấy thông tin
-        $default_role = 0; // Đặt quyền mặc định là người dùng thông thường
+        // Đặt quyền mặc định là người dùng thông thường
+        $default_role = 0;
 
         require_once 'dbconnect.php';
 
@@ -47,11 +51,11 @@ if (isset($_GET['code'])) {
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['role'] = $user['role'];
         } else {
-            // Nếu người dùng chưa tồn tại, tạo tài khoản mới và mật khẩu ngẫu nhiên
-            $random_password = bin2hex(random_bytes(8)); // Mật khẩu ngẫu nhiên 16 ký tự
-            $hashed_password = password_hash($random_password, PASSWORD_DEFAULT); // Mã hóa mật khẩu
+            // Nếu người dùng chưa tồn tại, tạo tài khoản mới với mật khẩu ngẫu nhiên
+            $random_password = bin2hex(random_bytes(8));
+            $hashed_password = password_hash($random_password, PASSWORD_DEFAULT);
 
-            $phone_number = NULL; // Hoặc có thể là một giá trị mặc định nào đó
+            $phone_number = NULL;
 
             // Chèn dữ liệu vào bảng users
             $stmt = $conn->prepare("INSERT INTO users (email, full_name, password, role, phone_number) VALUES (?, ?, ?, ?, ?)");
@@ -60,8 +64,6 @@ if (isset($_GET['code'])) {
             if ($stmt->execute()) {
                 $_SESSION['user_id'] = $conn->insert_id;
                 $_SESSION['role'] = $default_role;
-
-                // Mật khẩu ngẫu nhiên đã được tạo và lưu trữ, nhưng không cần gửi cho người dùng
             } else {
                 echo "Lỗi khi chèn dữ liệu: " . $stmt->error;
                 die();
@@ -71,8 +73,8 @@ if (isset($_GET['code'])) {
         $stmt->close();
         $conn->close();
 
-        // Chuyển hướng về trang chủ sau khi đã lưu thông tin người dùng
-        header("Location: ./index.php"); // Chuyển hướng về trang chủ sau khi đăng nhập thành công
+        // Chuyển hướng về trang chủ sau khi đăng nhập thành công
+        header("Location: ./index.php");
         exit();
     } else {
         echo "Lỗi khi đăng nhập bằng Google!";
@@ -81,3 +83,4 @@ if (isset($_GET['code'])) {
     header("Location: " . $client->createAuthUrl());
     exit();
 }
+?>
